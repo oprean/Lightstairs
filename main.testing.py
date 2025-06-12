@@ -7,7 +7,7 @@ from constants import *
 
 # Configurația benzii LED
 pin = machine.Pin(0)  # Schimbă cu pinul tău de control
-num_leds = 30 + 29 + 29 + 29 + 29 + 29 + 29   # Total LED-uri pe ambele trepte
+num_leds = 30 + 29 + 29 + 29 + 29 + 29 + 30   # Total LED-uri pe ambele trepte
 np = neopixel.NeoPixel(pin, num_leds)
 firmware_url = "https://raw.githubusercontent.com/oprean/Lightstairs/master"
 
@@ -21,7 +21,7 @@ treapta3 = list(range(59, 88))   # LED-urile 30-58
 treapta4  = list(range(88, 117))   # LED-urile 30-58
 treapta5  = list(range(117, 146))   # LED-urile 30-58
 treapta6  = list(range(146, 175))   # LED-urile 30-58
-treapta7  = list(range(175, 204))   # LED-urile 30-58
+treapta7  = list(range(175, 205))   # LED-urile 30-58
 
 def culoare_random():
     return (urandom.getrandbits(8), urandom.getrandbits(8), urandom.getrandbits(8))
