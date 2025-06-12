@@ -119,11 +119,6 @@ class StairsPainter:
       self.strip.brightness(self.brightness)
       self.init_Visual()
       
-    def loadConfigs(self):
-        self.config = Config()
-        self.color_scheme = self.config.data['color_scheme']
-        self.brightness = self.config.data['brightness']
-
     def init_Visual(self):
         col1 = black
         col2 = red
@@ -171,8 +166,8 @@ class StairsPainter:
              color1 = black
              color2 = color
         else:
-             color1 = color
-             color2 = black
+             color1 = black
+             color2 = color
 
         #print("stair " + str(i) + "[" + str(STAIRS[i][0]) + " : " + str(STAIRS[i][1]) + "]")            
         for cs in range(STAIRS_FADE_STEPS):
@@ -237,7 +232,7 @@ class StairsPainter:
        self.strip.show()     
         
     def pulseLight(self):
-        #print("pulse")
+        print("pulse")
         self.strip.clear()
         max_range = 7
         m = 18

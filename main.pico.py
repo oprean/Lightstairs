@@ -1,29 +1,9 @@
-# https://www.kickstarter.com/projects/livegrid/livegrid?ref=android_project_share
-
 import utime
-import uping
 import machine
 import uasyncio
 from lib.hcsr04 import HCSR04
 from lib.neopixel import Neopixel
-from lib.multiplex import Multiplex
-from lib.piano import Piano
 from lib.ldr import LDR
-from lib.web_server import WebServer
-from lib.config import Config
-#import config as cfg
-from constants import *
-
-TRIGGERED_NONE = 0
-TRIGGERED_TOP = 1
-TRIGGERED_BOTTOM = 2
-
-
-RUNNING_MODE_OFF = 0
-RUNNING_MODE_SLEEPING = 1
-RUNNING_MODE_WATCHFUL = 2
-RUNNING_MODE_PIANO = 3
-RUNNING_MODE_AI = 4
 
 LEDSTRIP_NUM_LEDS = 60
 LEDSTRIP_PIN = 0
@@ -33,23 +13,13 @@ SENSOR_PIN_ECHO = 3
 
 ## in centimeter
 SENSOR_DISTANCE = 50
-TOP_SENSOR_DISTANCE = 50
-BOTTOM_SENSOR_DISTANCE = 50
 
 LDR_PIN = 28
-
-BUTTON_PIN = 1
-
-#piano multiplexer
-S1_PIN = 0
-S2_PIN = 0
-S3_PIN = 0
-S0_PIN = 0
-Z_PIN = 0
 
 ## in percent
 PHOTO_DUSK_VALUE = 50
 
+BUTTON_PIN = 1
 
 PULSE_INC = 1
 
@@ -98,32 +68,19 @@ colors = [white, red, orange, yellow, green, blue, indigo, violet]
 
 class StairsPainter:
     def __init__(self):
-      self.config = Config()
-      print(self.config.data)
       self.strip = Neopixel( num_leds = LEDSTRIP_NUM_LEDS, state_machine=0, pin = LEDSTRIP_PIN, mode = "GRB", delay = 0.0001)
-      self.top_sensor = HCSR04(trigger_pin = SENSOR_PIN_TRIGGER, echo_pin = SENSOR_PIN_ECHO, echo_timeout_us = 10000)
-      #self.bottom_sensor = HCSR04(trigger_pin = SENSOR_PIN_TRIGGER, echo_pin = SENSOR_PIN_ECHO, echo_timeout_us = 10000)
+      self.sensor = HCSR04(trigger_pin = SENSOR_PIN_TRIGGER, echo_pin = SENSOR_PIN_ECHO, echo_timeout_us = 10000)
       self.button = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
-      #self.piano = Piano(S0_PIN, S1_PIN, S2_PIN, S3_PIN, Z_PIN)
-      self.mode = RUNNING_MODE_SLEEPING
       self.ldr = LDR(LDR_PIN)
-      self.triggered = 0
+      self.distance = 999
       self.light = 0
       self.cid = 0
       self.pulse = 0
       self.inc = PULSE_INC
       self.color = colors[self.cid]
-      self.color_scheme = self.config.data['color_scheme']
-      self.brightness = self.config.data['brightness']
-      #self.brightness = 255
-      self.strip.brightness(self.brightness)
+      self.strip.brightness(100)
       self.init_Visual()
       
-    def loadConfigs(self):
-        self.config = Config()
-        self.color_scheme = self.config.data['color_scheme']
-        self.brightness = self.config.data['brightness']
-
     def init_Visual(self):
         col1 = black
         col2 = red
@@ -147,7 +104,7 @@ class StairsPainter:
         self.strip.fill(black)
         self.strip.brightness(0)
         self.strip.show()
-              
+        
     def nextColor(self):
         print("new color: " + str(self.cid))    
         if (self.cid<len(colors)-1):
@@ -155,60 +112,34 @@ class StairsPainter:
         else:
             self.cid = 0
         return colors[self.cid]
-
-    def light_one(self, stair_no, on = 1):
-        if self.color_scheme == 'default':
-            color = self.color
-        elif self.color_scheme == 'xmas':
-            if stair_no%2 == 0:
-                color = green
-            else:
-                 color = red
-        else:
-            color = self.color
-        
-        if on == 1:
-             color1 = black
-             color2 = color
-        else:
-             color1 = color
-             color2 = black
-
-        #print("stair " + str(i) + "[" + str(STAIRS[i][0]) + " : " + str(STAIRS[i][1]) + "]")            
-        for cs in range(STAIRS_FADE_STEPS):
-            self.strip.fade_pixel_line(STAIRS[stair_no][0], STAIRS[stair_no][1], color1, color2, cs, STAIRS_FADE_STEPS)
-            utime.sleep_us(STAIRS_FADE_SPEED)
-            self.strip.show()
-        if on == 0:
-            self.strip.set_pixel_line(STAIRS[stair_no][0], STAIRS[stair_no][1], black,0)
-            self.strip.show()
-        utime.sleep_us(STAIRS_FADE_SPEED)
-           
-    def lights(self, triggered = TRIGGERED_NONE):
-       self.strip.clear()
-       self.strip.show()
-       print("lights")
-       if (triggered == TRIGGERED_NONE): return
-       if (triggered == TRIGGERED_TOP):
-           range_stairs = range(STAIRS_CNT)
-       else:
-           range_stairs = range(STAIRS_CNT-1,-1,-1)
-           
-       for i in range_stairs:
-            self.light_one(i, 1)
-        
-       for i in range_stairs:
-            self.light_one(i, 0)
     
-       self.strip.clear()
-       self.strip.show()     
-
-    def lights_OLD(self, triggered = TRIGGERED_NONE):
+    def fadeAll(self, color, inc):
+        steps = 255
+        if (inc == 1):
+            color1 = black
+            color2 = color
+        else:
+            color1 = color
+            color2 = black
+            
+        for i in range(steps):
+            self.strip.fade_pixel_line(0, LEDSTRIP_NUM_LEDS, color1, color2, i, steps)
+            self.strip.show()
+            utime.sleep_ms(1)
+            
+        if (inc == -1):
+            self.strip.fill(black)
+            self.strip.show()
+    
+    def lights_OLD(self):
+        self.fadeAll(self.color,1)
+        uasyncio.sleep(2)
+        self.fadeAll(self.color,-1)
+        
+    def lights(self, direction = "down"):
        self.strip.clear()
        self.strip.show()
-       print("lights")
-       if (triggered == TRIGGERED_NONE): return
-       if (triggered == TRIGGERED_TOP):
+       if (direction == "down"):
            range_stairs = range(STAIRS_CNT)
        else:
            range_stairs = range(STAIRS_CNT-1,-1,-1)
@@ -234,18 +165,25 @@ class StairsPainter:
         utime.sleep_us(STAIRS_FADE_SPEED)
     
        self.strip.clear()
-       self.strip.show()     
+       self.strip.show()
+       
+    def pulseLight_OLD(self):
+        self.strip.brightness(self.pulse)
+        self.strip.set_pixel_line(4,6, self.color)
+        if (self.pulse > 255): self.inc = -PULSE_INC
+        if (self.pulse < 0): self.inc = PULSE_INC
+        self.pulse += self.inc
+        self.strip.show()
         
     def pulseLight(self):
-        #print("pulse")
         self.strip.clear()
         max_range = 7
         m = 18
-        if (self.pulse >= LEDSTRIP_NUM_LEDS-max_range):
+        if (self.pulse > LEDSTRIP_NUM_LEDS-max_range):
             self.inc = -PULSE_INC
             self.pulse = LEDSTRIP_NUM_LEDS-max_range
             self.color = self.nextColor()
-        if (self.pulse <= max_range):
+        if (self.pulse < max_range):
             self.inc = PULSE_INC
             self.pulse = max_range
             self.color = self.nextColor()
@@ -253,89 +191,53 @@ class StairsPainter:
         for i in range(1,max_range):
             color = (int(self.color[0]/i*m), int(self.color[1]/i*m), int(self.color[2]/i*m))
             self.strip.set_pixel(self.pulse-i+1, color)
-            self.strip.set_pixel(self.pulse+i-1, color)
+            self.strip.set_pixel(self.pulse+i, color)
             #self.strip.fade_pixel(self.pulse-i, black, self.color, i, max_range)
             #self.strip.fade_pixel(self.pulse+i-1, self.color, black, i, max_range)
             
         self.pulse += self.inc
         self.strip.show()
-        
-    def fadeout(self):
-        self.pulse = 0
-        self.inc = PULSE_INC           
-        self.strip.fill(black)
-        self.strip.brightness(0)
-        self.strip.show()
-        
+       
     async def read_Button(self):
         while True:
             if (self.button.value() == 0):
                 self.color = self.nextColor()
-                if (self.mode != RUNNING_MODE_PIANO):
-                    self.mode = RUNNING_MODE_PIANO
-                else:
-                    self.mode = RUNNING_MODE_SLEEPING
             await uasyncio.sleep_ms(200)
 
     async def read_Light(self):
         while True:
             self.light = self.ldr.get_light_percentage()
-            #print("Light :" + str(self.light))
+            print("Light :" + str(self.light))
             await uasyncio.sleep(1)
 
-    async def read_Sensors(self):
+    async def read_Distance(self):
         while True:
-            top_distance = self.top_sensor.distance_cm()
-            #bottom_distance = self.bottom_sensor.distance_cm()
-            bottom_distance = 999
-            if (top_distance < int(self.config.data['top_sensor'])):
-                self.triggered = TRIGGERED_TOP
-            else:
-                if (bottom_distance < int(self.config.data['bottom_sensor'])):
-                    self.triggered = TRIGGERED_BOTTOM
-                else:
-                    self.triggered = TRIGGERED_NONE
-            #print("Triggered: " + str(self.triggered))
+            self.distance = self.sensor.distance_cm()
+            print("Distance: " + str(self.distance))
             await uasyncio.sleep_ms(1000)
-
-    async def start_WebServer(self):
-        web = WebServer(SSID,PASSWORD)
-        web.start()
-
-    async def check_is_online(self):
-        uping.ping('google.com')
-        await uasyncio.sleep(5)
 
     async def run_Main(self):
         while True:
             await uasyncio.sleep_ms(50)
-            #print("mode: " + str(self.mode) + "triggered: " str(self.triggered))
-            if ( self.mode == RUNNING_MODE_PIANO ):
-                #self.piano.run()
-                print("piano should run now ...")
-                
-            elif ( self.mode == RUNNING_MODE_WATCHFUL ):
-                if (self.triggered != TRIGGERED_NONE):
+            if (self.light < PHOTO_DUSK_VALUE):
+                if (self.distance < SENSOR_DISTANCE):
                     self.pulse = 0
                     self.inc = PULSE_INC
-                    self.lights(self.triggered)
+                    self.lights()
                 else:
                     self.pulseLight()
-                if (self.light > PHOTO_DUSK_VALUE):
-                    self.mode = RUNNING_MODE_SLEEPING
-                    self.fadeout()
-                    
-            elif (self.mode == RUNNING_MODE_SLEEPING):
-                if (self.light < PHOTO_DUSK_VALUE):
-                    self.mode = RUNNING_MODE_WATCHFUL
+            else:
+                self.pulse = 0
+                self.inc = PULSE_INC
+                self.strip.fill(black)
+                self.strip.brightness(0)
+                self.strip.show()      
       
     def run(self):
         event_loop = uasyncio.get_event_loop()
         event_loop.create_task(self.read_Button())
-        #event_loop.create_task(self.check_is_online())
         event_loop.create_task(self.read_Light())
-        event_loop.create_task(self.read_Sensors())
-        event_loop.create_task(self.start_WebServer())
+        event_loop.create_task(self.read_Distance())
         event_loop.create_task(self.run_Main())
         event_loop.run_forever()
         

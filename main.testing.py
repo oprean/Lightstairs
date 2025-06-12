@@ -40,3 +40,7 @@ while True:
 
     aprinde_treapta(treapta2)
     time.sleep(2)
+<<<<<<< HEAD
+=======
+
+>>>>>>> ad5f536e46280e42d346d09173a3ed124afabfac

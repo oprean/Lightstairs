@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.languageServer": "Pylance",
+		"micropico.syncFolder": "",
+		"python.analysis.typeshedPaths": [
+			"~/.micropico-stubs/included"
+		],
+		"python.analysis.extraPaths": [
+			"Modules",
+			"~/.micropico-stubs/included"
+		]
+	}
+}
